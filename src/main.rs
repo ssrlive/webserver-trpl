@@ -6,7 +6,10 @@ use std::time::Duration;
 use webserver::ThreadPool;
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let opt = Opt::from_args();
+    let addr = format!("{}:{}", opt.host, opt.port);
+
+    let listener = TcpListener::bind(addr).unwrap();
     let pool = ThreadPool::new(4);
     for stream in listener.incoming() {
         let stream = stream.unwrap();
@@ -16,9 +19,21 @@ fn main() {
     }
 }
 
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "webserver", about = "A webserver demo.")]
+struct Opt {
+    #[structopt(short, long, default_value = "127.0.0.1")]
+    host: String,
+
+    #[structopt(short, long, default_value = "7878")]
+    port: u16,
+}
+
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
+    let _ = stream.read(&mut buffer).unwrap();
 
     let get = b"GET / HTTP/1.1\r\n";
     let sleep = b"GET /sleep HTTP/1.1\r\n";
@@ -39,6 +54,6 @@ fn handle_connection(mut stream: TcpStream) {
         contents.len(),
         contents,
     );
-    stream.write(response.as_bytes()).unwrap();
+    let _ = stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
