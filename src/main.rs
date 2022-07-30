@@ -11,14 +11,16 @@ fn main() {
     println!("Serving on {}", addr);
 
     let listener = TcpListener::bind(addr).unwrap();
-    let pool = ThreadPool::new(4);
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                pool.execute(|| handle_connection(stream));
-            }
-            Err(e) => {
-                println!("Error: {:#?}", e);
+    {
+        let pool = ThreadPool::new(4);
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    pool.execute(|| handle_connection(stream));
+                }
+                Err(e) => {
+                    println!("Error: {:#?}", e);
+                }
             }
         }
     }
