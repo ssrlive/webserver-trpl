@@ -8,14 +8,19 @@ use webserver::ThreadPool;
 fn main() {
     let opt = Opt::from_args();
     let addr = format!("{}:{}", opt.host, opt.port);
+    println!("Serving on {}", addr);
 
     let listener = TcpListener::bind(addr).unwrap();
     let pool = ThreadPool::new(4);
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        pool.execute(|| {
-            handle_connection(stream);
-        });
+        match stream {
+            Ok(stream) => {
+                pool.execute(|| handle_connection(stream));
+            }
+            Err(e) => {
+                println!("Error: {:#?}", e);
+            }
+        }
     }
 }
 
