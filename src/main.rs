@@ -20,6 +20,18 @@ fn main() {
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let shutdown_signal_copy = shutdown_signal.clone();
 
+    ctrlc::set_handler(move || {
+        println!("Shutting down...");
+        shutdown_signal.store(true, Ordering::Relaxed);
+
+        let mut addr = format!("{}:{}", "127.0.0.1", local_addr.port());
+        if local_addr.is_ipv6() {
+            addr = format!("{}:{}", "[::1]", local_addr.port());
+        }
+        let _ = TcpStream::connect(addr);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     let handle = thread::spawn(move || {
         let pool = ThreadPool::new(4);
         for stream in listener.incoming() {
@@ -37,18 +49,6 @@ fn main() {
         }
     });
 
-    ctrlc::set_handler(move || {
-        println!("Shutting down...");
-        shutdown_signal.store(true, Ordering::Relaxed);
-
-        let mut addr = format!("{}:{}", "127.0.0.1", local_addr.port());
-        if local_addr.is_ipv6() {
-            addr = format!("{}:{}", "[::1]", local_addr.port());
-        }
-        let _ = TcpStream::connect(addr);
-    })
-    .expect("Error setting Ctrl-C handler");
-
     handle.join().unwrap();
 }
 
@@ -57,7 +57,7 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "webserver", about = "A webserver demo.")]
 struct Opt {
-    #[structopt(short, long, default_value = "127.0.0.1")]
+    #[structopt(short = "s", long, default_value = "127.0.0.1")]
     host: String,
 
     #[structopt(short, long, default_value = "7878")]
