@@ -12,10 +12,10 @@ use webserver::ThreadPool;
 fn main() {
     let opt = Opt::from_args();
     let addr = format!("{}:{}", opt.host, opt.port);
-    println!("Serving on {}", addr);
 
     let listener = TcpListener::bind(addr).unwrap();
-    let local_addr = listener.local_addr().unwrap();
+    let mut local_addr = listener.local_addr().unwrap();
+    println!("Serving on {}", local_addr);
 
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let shutdown_signal_copy = shutdown_signal.clone();
@@ -40,6 +40,14 @@ fn main() {
     ctrlc::set_handler(move || {
         println!("Shutting down...");
         shutdown_signal.store(true, Ordering::Relaxed);
+
+        let addr_ip = local_addr.ip().to_string();
+        if addr_ip == "::" || addr_ip == "0.0.0.0" {
+            local_addr = format!("{}:{}", "127.0.0.1", local_addr.port())
+                .parse()
+                .expect("Unable to parse socket address");
+        }
+
         let _ = TcpStream::connect(local_addr);
     })
     .expect("Error setting Ctrl-C handler");
