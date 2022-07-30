@@ -1,6 +1,10 @@
 use std::fs;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::Duration;
 use webserver::ThreadPool;
@@ -11,9 +15,17 @@ fn main() {
     println!("Serving on {}", addr);
 
     let listener = TcpListener::bind(addr).unwrap();
-    {
+    let local_addr = listener.local_addr().unwrap();
+
+    let shutdown_signal = Arc::new(AtomicBool::new(false));
+    let shutdown_signal_copy = shutdown_signal.clone();
+
+    let handle = thread::spawn(move || {
         let pool = ThreadPool::new(4);
         for stream in listener.incoming() {
+            if shutdown_signal_copy.load(Ordering::Relaxed) {
+                break;
+            }
             match stream {
                 Ok(stream) => {
                     pool.execute(|| handle_connection(stream));
@@ -23,7 +35,16 @@ fn main() {
                 }
             }
         }
-    }
+    });
+
+    ctrlc::set_handler(move || {
+        println!("Shutting down...");
+        shutdown_signal.store(true, Ordering::Relaxed);
+        let _ = TcpStream::connect(local_addr);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    handle.join().unwrap();
 }
 
 use structopt::StructOpt;

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 structopt = { version = "0.3", default-features = false }
+ctrlc = { version = "3.2.2", default-features = false }
