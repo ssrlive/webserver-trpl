@@ -14,7 +14,7 @@ fn main() {
     let addr = format!("{}:{}", opt.host, opt.port);
 
     let listener = TcpListener::bind(addr).unwrap();
-    let mut local_addr = listener.local_addr().unwrap();
+    let local_addr = listener.local_addr().unwrap();
     println!("Serving on {}", local_addr);
 
     let shutdown_signal = Arc::new(AtomicBool::new(false));
@@ -41,14 +41,11 @@ fn main() {
         println!("Shutting down...");
         shutdown_signal.store(true, Ordering::Relaxed);
 
-        let addr_ip = local_addr.ip().to_string();
-        if addr_ip == "::" || addr_ip == "0.0.0.0" {
-            local_addr = format!("{}:{}", "127.0.0.1", local_addr.port())
-                .parse()
-                .expect("Unable to parse socket address");
+        let mut addr = format!("{}:{}", "127.0.0.1", local_addr.port());
+        if local_addr.is_ipv6() {
+            addr = format!("{}:{}", "[::1]", local_addr.port());
         }
-
-        let _ = TcpStream::connect(local_addr);
+        let _ = TcpStream::connect(addr);
     })
     .expect("Error setting Ctrl-C handler");
 
