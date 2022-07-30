@@ -1,10 +1,12 @@
 use async_std::{
     net::{TcpListener, TcpStream},
     prelude::*,
+    sync::Arc,
     task::{self, spawn},
 };
 use futures::StreamExt;
 use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 #[async_std::main]
@@ -16,16 +18,32 @@ async fn main() {
     let local_addr = listener.local_addr().unwrap();
     println!("Serving on {}", local_addr);
 
+    let shutdown_signal = Arc::new(AtomicBool::new(false));
+    let shutdown_signal_copy = shutdown_signal.clone();
+
+    ctrlc::set_handler(move || {
+        println!("Shutting down...");
+        shutdown_signal.store(true, Ordering::Relaxed);
+
+        let mut addr = format!("{}:{}", "127.0.0.1", local_addr.port());
+        if local_addr.is_ipv6() {
+            addr = format!("{}:{}", "[::1]", local_addr.port());
+        }
+        let _ = std::net::TcpStream::connect(addr);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     spawn(async move {
-        listener
-            .incoming()
-            .for_each_concurrent(None, |stream| async move {
-                if let Ok(stream) = stream {
-                    // handle_connection(stream).await;
-                    spawn(handle_connection(stream));
-                }
-            })
-            .await;
+        let mut incoming = listener.incoming();
+
+        while let Some(stream) = incoming.next().await {
+            if shutdown_signal_copy.load(Ordering::Relaxed) {
+                break;
+            }
+            if let Ok(stream) = stream {
+                spawn(handle_connection(stream));
+            }
+        }
     })
     .await;
 }
