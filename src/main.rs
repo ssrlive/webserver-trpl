@@ -41,8 +41,8 @@ async fn main() {
                 break;
             }
             if let Ok(stream) = stream {
-                task::spawn(handle_connection(stream));
-            }
+               task::spawn(handle_connection(stream));
+           }
         }
     })
     .await;
