@@ -2,7 +2,7 @@ use async_std::{
     net::{TcpListener, TcpStream},
     prelude::*,
     sync::Arc,
-    task::{self, spawn},
+    task,
 };
 use futures::StreamExt;
 use std::fs;
@@ -33,7 +33,7 @@ async fn main() {
     })
     .expect("Error setting Ctrl-C handler");
 
-    spawn(async move {
+    task::spawn(async move {
         let mut incoming = listener.incoming();
 
         while let Some(stream) = incoming.next().await {
@@ -41,7 +41,7 @@ async fn main() {
                 break;
             }
             if let Ok(stream) = stream {
-                spawn(handle_connection(stream));
+                task::spawn(handle_connection(stream));
             }
         }
     })
