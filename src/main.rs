@@ -38,13 +38,8 @@ fn main() {
             if shutdown_signal_copy.load(Ordering::Relaxed) {
                 break;
             }
-            match stream {
-                Ok(stream) => {
-                    pool.execute(|| handle_connection(stream));
-                }
-                Err(e) => {
-                    println!("Error: {:#?}", e);
-                }
+            if let Ok(stream) = stream {
+                pool.execute(|| handle_connection(stream));
             }
         }
     });
